@@ -35,3 +35,7 @@ Thumbs.db
 
 # Docker / DB data mounts
 deployments/docker/data/
+
+# Tracking & progress
+PHASES.md
+
