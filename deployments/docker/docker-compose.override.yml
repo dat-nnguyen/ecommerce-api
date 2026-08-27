@@ -1,0 +1,23 @@
+version: '3.8'
+
+# Local development override example
+# Use this file to attach microservices locally or configure volume bind mounts / debug ports.
+
+services:
+  # Example: Uncomment to run user-service in container during dev
+  # user-service:
+  #   build:
+  #     context: ../../
+  #     dockerfile: services/user-service/Dockerfile
+  #   volumes:
+  #     - ../../services/user-service:/app/services/user-service
+  #     - ../../packages:/app/packages
+  #   ports:
+  #     - "3001:3001"
+  #     - "9229:9229" # Node inspector debug port
+  #   environment:
+  #     NODE_ENV: development
+  #     PORT: 3001
+  #     DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ecommerce?schema=public
+  #   networks:
+  #     - ecommerce-network

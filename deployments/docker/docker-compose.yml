@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # Infrastructure: PostgreSQL (Users, Orders, Payments)
+  # ----------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecommerce-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ecommerce}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------
+  # Infrastructure: MongoDB (Products)
+  # ----------------------------------------
+  mongodb:
+    image: mongo:7-jammy
+    container_name: ecommerce-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-rootpassword}
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------
+  # Infrastructure: Redis (Cart & Cache)
+  # ----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------
+  # Infrastructure: RabbitMQ (Message Broker)
+  # ----------------------------------------
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ecommerce-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - '5672:5672' # AMQP protocol
+      - '15672:15672' # Management Web UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------
+  # API Gateway: Kong (DB-less mode)
+  # ----------------------------------------
+  kong:
+    image: kong:3.6-alpine
+    container_name: ecommerce-kong
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    ports:
+      - '8000:8000' # Gateway Proxy
+      - '8001:8001' # Gateway Admin API
+    volumes:
+      - ../kong/kong.yml:/etc/kong/kong.yml:ro
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------
+  # Monitoring: Prometheus
+  # ----------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: ecommerce-prometheus
+    restart: unless-stopped
+    volumes:
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '9090:9090'
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------
+  # Monitoring: Grafana
+  # ----------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: ecommerce-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - ecommerce-network
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

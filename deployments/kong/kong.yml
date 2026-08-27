@@ -1,0 +1,70 @@
+_format_version: '3.0'
+_transform: true
+
+services:
+  - name: user-service
+    url: http://user-service:3001
+    routes:
+      - name: user-routes
+        paths:
+          - /api/v1/users
+          - /api/v1/auth
+        strip_path: false
+
+  - name: product-service
+    url: http://product-service:3002
+    routes:
+      - name: product-routes
+        paths:
+          - /api/v1/products
+        strip_path: false
+
+  - name: cart-service
+    url: http://cart-service:3003
+    routes:
+      - name: cart-routes
+        paths:
+          - /api/v1/cart
+        strip_path: false
+
+  - name: order-service
+    url: http://order-service:3004
+    routes:
+      - name: order-routes
+        paths:
+          - /api/v1/orders
+        strip_path: false
+
+  - name: payment-service
+    url: http://payment-service:3005
+    routes:
+      - name: payment-routes
+        paths:
+          - /api/v1/payments
+        strip_path: false
+
+plugins:
+  - name: rate-limiting
+    config:
+      minute: 100
+      policy: local
+  - name: cors
+    config:
+      origins:
+        - '*'
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - Authorization
+      credentials: true

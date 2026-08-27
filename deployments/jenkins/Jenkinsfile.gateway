@@ -1,0 +1,21 @@
+pipeline {
+    agent any
+
+    environment {
+        KONG_ADMIN_URL = credentials('kong-admin-url')
+    }
+
+    stages {
+        stage('Lint Config') {
+            steps {
+                sh 'deck ping --kong-addr ${KONG_ADMIN_URL} || true'
+                sh 'deck validate -s deployments/kong/kong.yml'
+            }
+        }
+        stage('Sync Gateway') {
+            steps {
+                sh 'deck sync -s deployments/kong/kong.yml --kong-addr ${KONG_ADMIN_URL}'
+            }
+        }
+    }
+}

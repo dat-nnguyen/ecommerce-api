@@ -1,0 +1,25 @@
+pipeline {
+    agent any
+
+    tools {
+        nodejs 'NodeJS-20'
+    }
+
+    stages {
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        stage('Lint Packages') {
+            steps {
+                sh 'npm run lint'
+            }
+        }
+        stage('Test Packages') {
+            steps {
+                sh 'npm run test --workspaces --if-present'
+            }
+        }
+    }
+}

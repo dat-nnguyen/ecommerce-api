@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'SERVICE_NAME', defaultValue: 'user-service', description: 'Name of the microservice directory under services/')
+        string(name: 'DOCKER_IMAGE', defaultValue: 'my-registry/user-service', description: 'Destination Docker image tag')
+    }
+
+    tools {
+        nodejs 'NodeJS-20'
+    }
+
+    stages {
+        stage('Checkout & Test') {
+            steps {
+                sh 'npm ci'
+                sh "npm run test --workspace=services/${params.SERVICE_NAME} || true"
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${params.DOCKER_IMAGE}:${env.BUILD_NUMBER} -f services/${params.SERVICE_NAME}/Dockerfile ."
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    // sh "docker push ${params.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                    echo "Docker image built: ${params.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                }
+            }
+        }
+    }
+}
