@@ -48,6 +48,11 @@ plugins:
     config:
       minute: 100
       policy: local
+  - name: correlation-id
+    config:
+      header_name: x-trace-id
+      generator: uuid
+      echo_downstream: true
   - name: cors
     config:
       origins:
@@ -67,4 +72,9 @@ plugins:
         - Content-Type
         - Date
         - Authorization
+        - x-trace-id
+        - x-request-id
+        - x-correlation-id
+      exposed_headers:
+        - x-trace-id
       credentials: true
