@@ -1,11 +1,9 @@
-'use strict';
-
-const AppError = require('./AppError');
+import AppError from './AppError.js';
 
 /**
  * 400 Bad Request Error
  */
-class BadRequestError extends AppError {
+export class BadRequestError extends AppError {
   constructor(message = 'Bad Request', details = null) {
     super(message, 400, 'BAD_REQUEST', details, true);
   }
@@ -14,7 +12,7 @@ class BadRequestError extends AppError {
 /**
  * 401 Unauthorized Error
  */
-class UnauthorizedError extends AppError {
+export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized', details = null) {
     super(message, 401, 'UNAUTHORIZED', details, true);
   }
@@ -23,7 +21,7 @@ class UnauthorizedError extends AppError {
 /**
  * 403 Forbidden Error
  */
-class ForbiddenError extends AppError {
+export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden', details = null) {
     super(message, 403, 'FORBIDDEN', details, true);
   }
@@ -32,7 +30,7 @@ class ForbiddenError extends AppError {
 /**
  * 404 Not Found Error
  */
-class NotFoundError extends AppError {
+export class NotFoundError extends AppError {
   constructor(message = 'Resource not found', details = null) {
     super(message, 404, 'NOT_FOUND', details, true);
   }
@@ -41,7 +39,7 @@ class NotFoundError extends AppError {
 /**
  * 409 Conflict Error (e.g., duplicate unique constraint)
  */
-class ConflictError extends AppError {
+export class ConflictError extends AppError {
   constructor(message = 'Resource conflict', details = null) {
     super(message, 409, 'CONFLICT', details, true);
   }
@@ -50,7 +48,7 @@ class ConflictError extends AppError {
 /**
  * 422 / 400 Validation Error (e.g., Joi / Zod schema validation failures)
  */
-class ValidationError extends AppError {
+export class ValidationError extends AppError {
   constructor(message = 'Validation failed', details = null, statusCode = 400) {
     super(message, statusCode, 'VALIDATION_ERROR', details, true);
   }
@@ -59,7 +57,7 @@ class ValidationError extends AppError {
 /**
  * 500 Internal Server Error (Non-operational by default)
  */
-class InternalServerError extends AppError {
+export class InternalServerError extends AppError {
   constructor(message = 'Internal server error', details = null, isOperational = false) {
     super(message, 500, 'INTERNAL_SERVER_ERROR', details, isOperational);
   }
@@ -68,7 +66,7 @@ class InternalServerError extends AppError {
 /**
  * 502 Bad Gateway Error (Upstream service failure)
  */
-class BadGatewayError extends AppError {
+export class BadGatewayError extends AppError {
   constructor(message = 'Bad gateway', details = null) {
     super(message, 502, 'BAD_GATEWAY', details, true);
   }
@@ -77,7 +75,7 @@ class BadGatewayError extends AppError {
 /**
  * 503 Service Unavailable Error
  */
-class ServiceUnavailableError extends AppError {
+export class ServiceUnavailableError extends AppError {
   constructor(message = 'Service unavailable', details = null) {
     super(message, 503, 'SERVICE_UNAVAILABLE', details, true);
   }
@@ -86,21 +84,8 @@ class ServiceUnavailableError extends AppError {
 /**
  * 504 Gateway Timeout Error
  */
-class GatewayTimeoutError extends AppError {
+export class GatewayTimeoutError extends AppError {
   constructor(message = 'Gateway timeout', details = null) {
     super(message, 504, 'GATEWAY_TIMEOUT', details, true);
   }
 }
-
-module.exports = {
-  BadRequestError,
-  UnauthorizedError,
-  ForbiddenError,
-  NotFoundError,
-  ConflictError,
-  ValidationError,
-  InternalServerError,
-  BadGatewayError,
-  ServiceUnavailableError,
-  GatewayTimeoutError,
-};

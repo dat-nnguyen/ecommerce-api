@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Microservices-based Ecommerce Platform",
+  "type": "module",
   "workspaces": [
     "packages/*",
     "services/*"

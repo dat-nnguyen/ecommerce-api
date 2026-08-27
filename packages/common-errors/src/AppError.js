@@ -1,10 +1,8 @@
-'use strict';
-
 /**
  * Base Application Error class for domain & operational errors.
  * Extends the native JavaScript Error class.
  */
-class AppError extends Error {
+export class AppError extends Error {
   /**
    * @param {string} message - Human-readable error message.
    * @param {number} [statusCode=500] - HTTP status code.
@@ -44,4 +42,4 @@ class AppError extends Error {
   }
 }
 
-module.exports = AppError;
+export default AppError;

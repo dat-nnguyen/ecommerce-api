@@ -1,9 +1,9 @@
-'use strict';
-
-const winston = require('winston');
-const express = require('express');
-const request = require('supertest');
-const {
+import { jest } from '@jest/globals';
+import winston from 'winston';
+import express from 'express';
+import request from 'supertest';
+import { Writable } from 'node:stream';
+import {
   createLogger,
   runWithTraceId,
   getTraceId,
@@ -11,9 +11,9 @@ const {
   createTraceMiddleware,
   createHttpLoggerMiddleware,
   createHttpMetricsMiddleware,
-} = require('../src');
+} from '../src/index.js';
 
-describe('Logger & Metrics Package', () => {
+describe('Logger & Metrics Package (ESM)', () => {
   describe('Trace Context (AsyncLocalStorage)', () => {
     it('should return null when outside a trace context', () => {
       expect(getTraceId()).toBeNull();
@@ -43,7 +43,6 @@ describe('Logger & Metrics Package', () => {
     it('should format logs with service_name, level, message, and trace_id', (done) => {
       let loggedOutput = '';
 
-      const { Writable } = require('stream');
       const mockStream = new Writable({
         write(chunk, encoding, callback) {
           loggedOutput += chunk.toString();

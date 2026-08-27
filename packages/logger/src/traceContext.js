@@ -1,8 +1,6 @@
-'use strict';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
-const { AsyncLocalStorage } = require('async_hooks');
-
-const asyncLocalStorage = new AsyncLocalStorage();
+export const asyncLocalStorage = new AsyncLocalStorage();
 
 /**
  * Executes a callback within an asynchronous context bound to a trace ID.
@@ -10,7 +8,7 @@ const asyncLocalStorage = new AsyncLocalStorage();
  * @param {Function} callback - The function to run within the context.
  * @returns {*} Return value of the callback.
  */
-function runWithTraceId(traceId, callback) {
+export function runWithTraceId(traceId, callback) {
   const store = new Map();
   store.set('traceId', traceId);
   return asyncLocalStorage.run(store, callback);
@@ -20,7 +18,7 @@ function runWithTraceId(traceId, callback) {
  * Retrieves the current trace ID from the active asynchronous context.
  * @returns {string|null} The active trace ID or null if not within a trace context.
  */
-function getTraceId() {
+export function getTraceId() {
   const store = asyncLocalStorage.getStore();
   return store ? store.get('traceId') || null : null;
 }
@@ -30,7 +28,7 @@ function getTraceId() {
  * @param {string} key - Metadata key.
  * @param {*} value - Metadata value.
  */
-function setContext(key, value) {
+export function setContext(key, value) {
   const store = asyncLocalStorage.getStore();
   if (store) {
     store.set(key, value);
@@ -42,12 +40,12 @@ function setContext(key, value) {
  * @param {string} key - Metadata key.
  * @returns {*} Value associated with key or undefined.
  */
-function getContext(key) {
+export function getContext(key) {
   const store = asyncLocalStorage.getStore();
   return store ? store.get(key) : undefined;
 }
 
-module.exports = {
+export default {
   asyncLocalStorage,
   runWithTraceId,
   getTraceId,

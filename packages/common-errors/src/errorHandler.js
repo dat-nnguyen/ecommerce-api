@@ -1,6 +1,4 @@
-'use strict';
-
-const AppError = require('./AppError');
+import AppError from './AppError.js';
 
 /**
  * Creates an Express error-handling middleware.
@@ -9,7 +7,7 @@ const AppError = require('./AppError');
  * @param {boolean} [options.isProduction=process.env.NODE_ENV === 'production'] - Production mode flag.
  * @returns {Function} Express error middleware (err, req, res, next).
  */
-function createErrorHandler(options = {}) {
+export function createErrorHandler(options = {}) {
   const logger = options.logger || console;
   const isProduction = options.isProduction ?? process.env.NODE_ENV === 'production';
 
@@ -81,7 +79,4 @@ function createErrorHandler(options = {}) {
   };
 }
 
-module.exports = {
-  createErrorHandler,
-  errorHandler: createErrorHandler(),
-};
+export const errorHandler = createErrorHandler();

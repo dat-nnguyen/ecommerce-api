@@ -1,6 +1,4 @@
-'use strict';
-
-const promClient = require('prom-client');
+import promClient from 'prom-client';
 
 /**
  * Initializes Prometheus metrics collection for a microservice.
@@ -9,7 +7,7 @@ const promClient = require('prom-client');
  * @param {promClient.Registry} [options.registry] - Custom Registry (defaults to promClient.register).
  * @returns {object} Metrics object containing registry and metric instruments.
  */
-function createMetrics(serviceName, options = {}) {
+export function createMetrics(serviceName, options = {}) {
   const register = options.registry || new promClient.Registry();
 
   // Set default labels for all metrics collected in this service
@@ -71,7 +69,5 @@ function createMetrics(serviceName, options = {}) {
   };
 }
 
-module.exports = {
-  promClient,
-  createMetrics,
-};
+export { promClient };
+export default createMetrics;

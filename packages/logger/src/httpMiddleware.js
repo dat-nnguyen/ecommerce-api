@@ -1,7 +1,5 @@
-'use strict';
-
-const crypto = require('crypto');
-const { runWithTraceId } = require('./traceContext');
+import crypto from 'node:crypto';
+import { runWithTraceId } from './traceContext.js';
 
 /**
  * Creates Express middleware to manage trace context and propagate trace IDs.
@@ -9,7 +7,7 @@ const { runWithTraceId } = require('./traceContext');
  * @param {string} [options.headerName='x-trace-id'] - Custom trace ID header name.
  * @returns {Function} Express middleware.
  */
-function createTraceMiddleware(options = {}) {
+export function createTraceMiddleware(options = {}) {
   const headerName = options.headerName || 'x-trace-id';
 
   return function traceMiddleware(req, res, next) {
@@ -36,7 +34,7 @@ function createTraceMiddleware(options = {}) {
  * @param {string[]} [options.skipPaths=['/health', '/metrics', '/favicon.ico']] - Paths to skip logging for.
  * @returns {Function} Express middleware.
  */
-function createHttpLoggerMiddleware(logger, options = {}) {
+export function createHttpLoggerMiddleware(logger, options = {}) {
   const skipPaths = new Set(options.skipPaths || ['/health', '/metrics', '/favicon.ico']);
 
   return function httpLoggerMiddleware(req, res, next) {
@@ -84,7 +82,7 @@ function createHttpLoggerMiddleware(logger, options = {}) {
  * @param {object} metrics - Metrics instance returned from createMetrics().
  * @returns {Function} Express middleware.
  */
-function createHttpMetricsMiddleware(metrics) {
+export function createHttpMetricsMiddleware(metrics) {
   const { httpRequestDurationSeconds, httpRequestsTotal, httpActiveRequests } = metrics;
 
   return function httpMetricsMiddleware(req, res, next) {
@@ -108,7 +106,7 @@ function createHttpMetricsMiddleware(metrics) {
   };
 }
 
-module.exports = {
+export default {
   createTraceMiddleware,
   createHttpLoggerMiddleware,
   createHttpMetricsMiddleware,

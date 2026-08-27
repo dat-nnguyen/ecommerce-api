@@ -1,6 +1,5 @@
-'use strict';
-
-const {
+import { jest } from '@jest/globals';
+import {
   AppError,
   BadRequestError,
   UnauthorizedError,
@@ -13,9 +12,9 @@ const {
   ServiceUnavailableError,
   GatewayTimeoutError,
   createErrorHandler,
-} = require('../src');
+} from '../src/index.js';
 
-describe('Common Errors Package', () => {
+describe('Common Errors Package (ESM)', () => {
   describe('AppError base class', () => {
     it('should initialize with default parameters', () => {
       const err = new AppError('Something went wrong');

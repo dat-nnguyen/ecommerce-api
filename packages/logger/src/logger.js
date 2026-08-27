@@ -1,7 +1,5 @@
-'use strict';
-
-const winston = require('winston');
-const { getTraceId } = require('./traceContext');
+import winston from 'winston';
+import { getTraceId } from './traceContext.js';
 
 /**
  * Winston format that enriches log entries with service name, trace ID, and standardized fields.
@@ -26,7 +24,7 @@ const enrichLogFormat = (serviceName) =>
  * @param {boolean} [options.prettyPrint=false] - Whether to use colorized human-readable output in dev.
  * @returns {winston.Logger} Configured Winston logger instance.
  */
-function createLogger(serviceName, options = {}) {
+export function createLogger(serviceName, options = {}) {
   const logLevel =
     options.logLevel ||
     process.env.LOG_LEVEL ||
@@ -71,6 +69,4 @@ function createLogger(serviceName, options = {}) {
   return logger;
 }
 
-module.exports = {
-  createLogger,
-};
+export default createLogger;

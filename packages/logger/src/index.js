@@ -1,30 +1,14 @@
-'use strict';
-
-const { createLogger } = require('./logger');
-const {
+export { createLogger } from './logger.js';
+export {
   asyncLocalStorage,
   runWithTraceId,
   getTraceId,
   setContext,
   getContext,
-} = require('./traceContext');
-const { createMetrics, promClient } = require('./metrics');
-const {
+} from './traceContext.js';
+export { createMetrics, promClient } from './metrics.js';
+export {
   createTraceMiddleware,
   createHttpLoggerMiddleware,
   createHttpMetricsMiddleware,
-} = require('./httpMiddleware');
-
-module.exports = {
-  createLogger,
-  asyncLocalStorage,
-  runWithTraceId,
-  getTraceId,
-  setContext,
-  getContext,
-  createMetrics,
-  promClient,
-  createTraceMiddleware,
-  createHttpLoggerMiddleware,
-  createHttpMetricsMiddleware,
-};
+} from './httpMiddleware.js';

@@ -1,9 +1,11 @@
 {
   "name": "@ecommerce/logger",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": "./src/index.js",
   "scripts": {
-    "test": "jest --passWithNoTests"
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --passWithNoTests"
   },
   "dependencies": {
     "prom-client": "^15.1.2",
