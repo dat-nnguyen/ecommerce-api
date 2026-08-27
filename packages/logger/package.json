@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"No tests specified for logger\""
+    "test": "jest --passWithNoTests"
   },
-  "dependencies": {}
+  "dependencies": {
+    "prom-client": "^15.1.2",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  }
 }
