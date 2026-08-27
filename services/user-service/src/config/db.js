@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import env from './env.js';
 
 /**
  * Singleton instance of PrismaClient for user-service database operations.
@@ -7,7 +8,7 @@ import { PrismaClient } from '@prisma/client';
  * @type {PrismaClient}
  */
 const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
 });
 
 export default prisma;
