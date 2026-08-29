@@ -13,7 +13,7 @@ describe('Refresh Token Repository (Unit Tests)', () => {
   };
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('storeRefreshToken', () => {

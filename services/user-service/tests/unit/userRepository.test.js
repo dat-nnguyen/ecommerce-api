@@ -15,7 +15,7 @@ describe('User Repository (Unit Tests)', () => {
   };
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('createUser', () => {
