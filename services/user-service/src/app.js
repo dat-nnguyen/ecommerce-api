@@ -9,6 +9,8 @@ import {
 import { errorHandler, NotFoundError } from '@ecommerce/common-errors';
 import prisma from './config/db.js';
 import env from './config/env.js';
+import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
 
 export const app = express();
 export const logger = createLogger('user-service', { logLevel: env.LOG_LEVEL });
@@ -37,6 +39,9 @@ app.get('/metrics', metrics.metricsHandler);
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', service: 'user-service' });
 });
+
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 
 // ----------------------------------------------------
 // User Routes (Initial skeleton)
