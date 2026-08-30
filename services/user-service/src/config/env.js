@@ -1,11 +1,15 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-if (process.env.NODE_ENV === 'test') {
-  dotenv.config({ path: '.env.test', override: true });
-} else {
-  dotenv.config();
-}
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+const serviceEnvPath = path.resolve(__dirname, '../../', envFile);
+
+// Load service-level env file followed by root fallback
+dotenv.config({ path: serviceEnvPath });
+dotenv.config();
 
 /**
  * Zod Schema for User Service environment variables.
