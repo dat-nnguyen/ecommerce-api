@@ -1,67 +1,70 @@
-import 'dotenv/config';
-import express from 'express';
-import {
-  createLogger,
-  createMetrics,
-  createTraceMiddleware,
-  createHttpLoggerMiddleware,
-  createHttpMetricsMiddleware,
-} from '@ecommerce/logger';
-import { errorHandler, NotFoundError } from '@ecommerce/common-errors';
+import { app, logger } from './app.js';
+import env from './config/env.js';
+import { connectDB, disconnectDB } from './config/db.js';
+
+let server;
 
 /**
- * Express application instance for Product Service.
- * @type {express.Express}
+ * Starts the Product Service HTTP server and connects to MongoDB.
  */
-const app = express();
-const PORT = process.env.PORT || 3002;
-const logger = createLogger('product-service');
-const metrics = createMetrics('product-service');
+async function startServer() {
+  try {
+    // Connect to database
+    await connectDB();
+    logger.info('Connected to MongoDB database');
 
-app.use(express.json());
-
-// ----------------------------------------------------
-// Global Middlewares (Tracing, Metrics, HTTP Logging)
-// ----------------------------------------------------
-app.use(createTraceMiddleware());
-app.use(createHttpMetricsMiddleware(metrics));
-app.use(createHttpLoggerMiddleware(logger));
-
-// ----------------------------------------------------
-// Health & Observability Endpoints
-// ----------------------------------------------------
-/**
- * Prometheus metrics scrape endpoint.
- */
-app.get('/metrics', metrics.metricsHandler);
-
-/**
- * Service healthcheck probe.
- */
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', service: 'product-service' });
-});
-
-// ----------------------------------------------------
-// Product Routes (Placeholder)
-// ----------------------------------------------------
-app.get('/api/v1/products', (req, res) => {
-  res.status(200).json({ success: true, data: [] });
-});
-
-// ----------------------------------------------------
-// Error Handling
-// ----------------------------------------------------
-app.use((req, res, next) => {
-  next(new NotFoundError(`Route ${req.method} ${req.originalUrl} not found`));
-});
-
-app.use(errorHandler);
-
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    logger.info(`Product service listening on port ${PORT}`);
-  });
+    server = app.listen(env.PORT, () => {
+      logger.info(`Product Service listening on port ${env.PORT} in ${env.NODE_ENV} mode`);
+    });
+  } catch (error) {
+    logger.error('Failed to start Product Service:', error);
+    process.exit(1);
+  }
 }
 
-export default app;
+/**
+ * Gracefully shuts down the HTTP server and disconnects from MongoDB.
+ *
+ * @param {string} signal - The termination signal received.
+ */
+async function gracefulShutdown(signal) {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  if (server) {
+    server.close(async () => {
+      logger.info('HTTP server closed.');
+      try {
+        await disconnectDB();
+        logger.info('MongoDB connection closed.');
+        process.exit(0);
+      } catch (err) {
+        logger.error('Error during database disconnect:', err);
+        process.exit(1);
+      }
+    });
+
+    // Fallback force shutdown timeout
+    setTimeout(() => {
+      logger.error('Forced shutdown due to timeout.');
+      process.exit(1);
+    }, 10000).unref();
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { server };
