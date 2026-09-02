@@ -23,7 +23,9 @@ describe('Product Domain Service (Unit Tests)', () => {
 
     it('should throw ConflictError if SKU is already taken', async () => {
       const payload = { name: 'Monitor', sku: 'MON-01', price: 299 };
-      jest.spyOn(productRepository, 'findProductBySku').mockResolvedValue({ id: 'p2', sku: 'MON-01' });
+      jest
+        .spyOn(productRepository, 'findProductBySku')
+        .mockResolvedValue({ id: 'p2', sku: 'MON-01' });
 
       await expect(productService.createProduct(payload)).rejects.toThrow(ConflictError);
       expect(productRepository.findProductBySku).toHaveBeenCalledWith('MON-01');
@@ -48,7 +50,9 @@ describe('Product Domain Service (Unit Tests)', () => {
     });
 
     it('should throw NotFoundError if product is inactive (soft-deleted)', async () => {
-      jest.spyOn(productRepository, 'findProductById').mockResolvedValue({ id: 'p1', isActive: false });
+      jest
+        .spyOn(productRepository, 'findProductById')
+        .mockResolvedValue({ id: 'p1', isActive: false });
 
       await expect(productService.getProductById('p1')).rejects.toThrow(NotFoundError);
     });
@@ -56,7 +60,10 @@ describe('Product Domain Service (Unit Tests)', () => {
 
   describe('listProducts', () => {
     it('should construct MongoDB filter for search, category, and price range', async () => {
-      const mockResult = { items: [{ id: 'p1' }], pagination: { page: 1, limit: 10, total: 1, totalPages: 1 } };
+      const mockResult = {
+        items: [{ id: 'p1' }],
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      };
       jest.spyOn(productRepository, 'findProducts').mockResolvedValue(mockResult);
 
       const query = {
@@ -84,7 +91,9 @@ describe('Product Domain Service (Unit Tests)', () => {
     });
 
     it('should default pagination to page 1 and limit 20 when omitted', async () => {
-      jest.spyOn(productRepository, 'findProducts').mockResolvedValue({ items: [], pagination: {} });
+      jest
+        .spyOn(productRepository, 'findProducts')
+        .mockResolvedValue({ items: [], pagination: {} });
 
       await productService.listProducts({});
 
@@ -101,7 +110,9 @@ describe('Product Domain Service (Unit Tests)', () => {
       const existing = { id: 'p1', sku: 'KEY-01', isActive: true };
       const updateData = { price: 99.99 };
       jest.spyOn(productRepository, 'findProductById').mockResolvedValue(existing);
-      jest.spyOn(productRepository, 'updateProduct').mockResolvedValue({ ...existing, ...updateData });
+      jest
+        .spyOn(productRepository, 'updateProduct')
+        .mockResolvedValue({ ...existing, ...updateData });
 
       const result = await productService.updateProduct('p1', updateData);
 
@@ -115,13 +126,17 @@ describe('Product Domain Service (Unit Tests)', () => {
       jest.spyOn(productRepository, 'findProductById').mockResolvedValue(existing);
       jest.spyOn(productRepository, 'findProductBySku').mockResolvedValue(conflictProduct);
 
-      await expect(productService.updateProduct('p1', { sku: 'KEY-NEW' })).rejects.toThrow(ConflictError);
+      await expect(productService.updateProduct('p1', { sku: 'KEY-NEW' })).rejects.toThrow(
+        ConflictError
+      );
     });
 
     it('should throw NotFoundError if updating a non-existent product', async () => {
       jest.spyOn(productRepository, 'findProductById').mockResolvedValue(null);
 
-      await expect(productService.updateProduct('p1', { price: 100 })).rejects.toThrow(NotFoundError);
+      await expect(productService.updateProduct('p1', { price: 100 })).rejects.toThrow(
+        NotFoundError
+      );
     });
   });
 
@@ -129,7 +144,9 @@ describe('Product Domain Service (Unit Tests)', () => {
     it('should soft-delete product when active', async () => {
       const existing = { id: 'p1', isActive: true };
       jest.spyOn(productRepository, 'findProductById').mockResolvedValue(existing);
-      jest.spyOn(productRepository, 'deleteProduct').mockResolvedValue({ id: 'p1', isActive: false });
+      jest
+        .spyOn(productRepository, 'deleteProduct')
+        .mockResolvedValue({ id: 'p1', isActive: false });
 
       const result = await productService.deleteProduct('p1');
 

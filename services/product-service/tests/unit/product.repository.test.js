@@ -39,7 +39,10 @@ describe('Product Repository Layer (Unit Tests)', () => {
   });
 
   it('findProducts should paginate and sort query results', async () => {
-    const mockItems = [{ id: '1', name: 'Keyboard' }, { id: '2', name: 'Mouse' }];
+    const mockItems = [
+      { id: '1', name: 'Keyboard' },
+      { id: '2', name: 'Mouse' },
+    ];
     const mockQuery = {
       sort: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
@@ -74,11 +77,10 @@ describe('Product Repository Layer (Unit Tests)', () => {
 
     const result = await productRepository.updateProduct('507f1f77bcf86cd799439011', updateData);
 
-    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
-      '507f1f77bcf86cd799439011',
-      updateData,
-      { new: true, runValidators: true }
-    );
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith('507f1f77bcf86cd799439011', updateData, {
+      new: true,
+      runValidators: true,
+    });
     expect(result).toEqual(mockUpdated);
   });
 
