@@ -48,10 +48,7 @@ export const createProductSchema = z.object({
       .trim()
       .min(2, 'SKU must be at least 2 characters long')
       .toUpperCase(),
-    images: z
-      .array(z.string().url('Each image must be a valid URL string'))
-      .default([])
-      .optional(),
+    images: z.array(z.string().url('Each image must be a valid URL string')).default([]).optional(),
   }),
 });
 
@@ -75,8 +72,17 @@ export const updateProductSchema = z.object({
         .optional(),
       price: z.coerce.number().min(0, 'Price must be non-negative').optional(),
       category: z.string().trim().min(1, 'Category cannot be empty').optional(),
-      stock: z.coerce.number().int('Stock must be an integer').min(0, 'Stock cannot be negative').optional(),
-      sku: z.string().trim().min(2, 'SKU must be at least 2 characters long').toUpperCase().optional(),
+      stock: z.coerce
+        .number()
+        .int('Stock must be an integer')
+        .min(0, 'Stock cannot be negative')
+        .optional(),
+      sku: z
+        .string()
+        .trim()
+        .min(2, 'SKU must be at least 2 characters long')
+        .toUpperCase()
+        .optional(),
       images: z.array(z.string().url('Each image must be a valid URL string')).optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {

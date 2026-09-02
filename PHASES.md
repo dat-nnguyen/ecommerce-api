@@ -116,41 +116,81 @@
 
 - [x] **Unit & Integration Test Suites**:
   - **91 passing unit & integration tests** in `user-service`.
-  - **111 total tests** passing across the entire monorepo (`pnpm test`).
+
+---
+
+### ✅ Phase 4: Product & Catalog Service (Milestone 4)
+
+- [x] **TODO 4.1: Service Skeleton, Fail-Fast Config & MongoDB Connection**
+  - **Fail-Fast Zod Configuration (`src/config/env.js`)**:
+    - Strict validation for `PORT`, `NODE_ENV`, `MONGODB_URI`, `REDIS_URI`, `LOG_LEVEL`.
+    - Fail-fast process exit (`process.exit(1)`) with detailed diagnostics upon validation failure.
+  - **MongoDB Connection Management (`src/config/db.js`)**:
+    - Connection pooling via `mongoose.connect()` with custom timeouts.
+    - Active lifecycle event listeners (`connected`, `error`, `disconnected`) logging through `@ecommerce/logger`.
+    - Clean `connectDB()` and `disconnectDB()` helpers for startup and graceful server teardown.
+  - **Server & App Decoupling (`src/app.js`, `src/server.js`)**:
+    - Decoupled Express app definition from HTTP server listener for supertest isolation.
+    - Graceful shutdown handlers capturing `SIGTERM`, `SIGINT`, `unhandledRejection`, `uncaughtException` with connection drain and Mongoose disconnect.
+    - Built-in `/health` and Prometheus `/metrics` scrape endpoints.
+
+- [x] **TODO 4.2: Product Data Model, Compound Indexes & Repository Layer**
+  - **Mongoose Schema & Indexing (`src/models/product.model.js`)**:
+    - Document schema: `name`, `description`, `price`, `category`, `stock`, `sku` (unique, uppercase), `images`, `isActive`, timestamps.
+    - Custom `toJSON` transform mapping `_id` to `id` and stripping `__v`.
+    - Text index: `{ name: 'text', description: 'text' }` for full-text catalog search.
+    - Compound indexes: `{ category: 1, price: 1 }` and `{ isActive: 1, createdAt: -1 }` for low-latency storefront filtering and sorting.
+  - **Repository Layer Pattern (`src/repositories/product.repository.js`)**:
+    - Data access methods isolating Mongoose queries: `createProduct`, `findProductById`, `findProductBySku`, `findProducts` (paginated with total count & totalPages), `updateProduct`, `deleteProduct` (soft delete), `decrementStock` (atomic inventory decrement conditional on `stock >= quantity`).
+
+- [x] **TODO 4.3: Product Domain Logic & Business Rules**
+  - **Domain Service (`src/services/product.service.js`)**:
+    - `createProduct`: Validates unique SKU before insert, throwing `ConflictError` on collision.
+    - `getProductById`: Retrieves active product, throwing `NotFoundError` if absent or inactive.
+    - `listProducts`: Dynamic query builder supporting category filtering, full-text search (`$text`), price boundary filtering (`$gte`, `$lte`), and pagination.
+    - `updateProduct`: Verifies existence, guards against SKU collisions on update, applies partial fields.
+    - `deleteProduct`: Soft-deletes active products by flipping `isActive` to `false`.
+
+- [x] **TODO 4.4: Validation Middlewares, HTTP Controllers & Route Wiring**
+  - **Request Validation Schemas (`src/validators/product.validator.js`)**:
+    - `productIdParamSchema`: Validates 24-hex MongoDB ObjectIds in route params.
+    - `createProductSchema`: Enforces required fields, string lengths, non-negative price/stock, valid image URLs.
+    - `updateProductSchema`: Validates partial updates with non-empty payload refinement.
+    - `queryProductsSchema`: Coerces types and sets default pagination (`page=1`, `limit=20`).
+  - **HTTP Controllers & Routes (`src/controllers/product.controller.js`, `src/routes/product.routes.js`)**:
+    - `GET /api/v1/products`: List products with pagination metadata (200 OK).
+    - `GET /api/v1/products/:id`: Get product by ID (200 OK).
+    - `POST /api/v1/products`: Create product (201 Created).
+    - `PATCH /api/v1/products/:id`: Update product (200 OK).
+    - `DELETE /api/v1/products/:id`: Soft-delete product (200 OK).
+    - Mounted on Express app under `/api/v1/products`.
+
+- [x] **Unit & Integration Test Suites**:
+  - **56 passing unit & integration tests** across 8 test suites in `product-service`.
+  - **147 total passing tests** across the entire monorepo (`pnpm test`).
 
 ---
 
 ## 🔮 Upcoming Phases & Roadmap
 
-### 🛍️ Phase 4: Product & Catalog Service (Milestone 4)
-
-- [ ] **TODO 4.1: Product Service Scaffolding & MongoDB Connection**
-  - MongoDB connection pool & Mongoose setup.
-  - Fail-fast Zod configuration (`env.js`).
-  - Express app & server skeleton with graceful shutdown and Prometheus metrics.
-- [ ] **TODO 4.2: Data Model & Repository Layer**
-  - Mongoose schemas with compound text indexes for search, categories, pricing, stock, and status.
-  - Product repository methods for CRUD, filtering, pagination, and stock decrement.
-- [ ] **TODO 4.3: Product Domain Logic & Caching**
-  - Product catalog service with Redis caching for hot product lookups.
-  - Category and price range filtering logic.
-- [ ] **TODO 4.4: Validation, Controllers & Route Wiring**
-  - Zod request schemas (product creation, updates, query params for pagination).
-  - RBAC protection (only `ADMIN` can create/update/delete products; `CUSTOMER` can browse).
-  - Routes mounted under `/api/v1/products`.
-
----
-
 ### 🛒 Phase 5: Cart Service (Milestone 5)
 
 - [ ] **TODO 5.1: Cart Service Scaffolding & Redis Integration**
-  - Redis client singleton & connection healthchecks.
-  - Session and user cart key strategy (`cart:{userId}`).
-- [ ] **TODO 5.2: Cart Repository & Business Logic**
-  - Add item, update quantity, remove item, clear cart, and merge guest cart into user cart.
-  - Cart TTL management (e.g. 7-day expiration).
-- [ ] **TODO 5.3: HTTP Transport & Integration**
+  - Redis client singleton (`ioredis`) & connection healthchecks.
+  - Fail-fast Zod configuration (`src/config/env.js`).
+  - Express app & server skeleton with graceful shutdown, `/health`, and Prometheus `/metrics`.
+- [ ] **TODO 5.2: Cart Repository & Data Access Layer**
+  - Redis Hash data structure for cart items: `cart:{userId}` / `cart:{guestSessionId}`.
+  - Add item, update item quantity, remove item, clear cart.
+  - Guest-to-user cart merging logic upon user login.
+  - Cart TTL management (e.g. 7-day automatic key expiration).
+- [ ] **TODO 5.3: Cart Domain Service & Validation**
+  - Cross-service product availability & price lookup validation.
+  - Zod request schemas (`addItemSchema`, `updateQuantitySchema`, `mergeCartSchema`).
+- [ ] **TODO 5.4: HTTP Transport & Integration Testing**
   - Routes mounted under `/api/v1/cart`.
+  - Controllers for `getCart`, `addItem`, `updateItem`, `removeItem`, `clearCart`, `mergeCart`.
+  - Integration tests with Redis mock.
 
 ---
 
