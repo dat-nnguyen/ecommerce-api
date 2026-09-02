@@ -1,31 +1,50 @@
 import mongoose from 'mongoose';
+import { createLogger } from '@ecommerce/logger';
 import env from './env.js';
 
-/**
- * TODO 4.1.2: MongoDB / Mongoose Connection Layer
- *
- * Requirements:
- * 1. Establish connection to MongoDB using `env.MONGODB_URI`.
- * 2. Configure connection event listeners ('connected', 'error', 'disconnected').
- * 3. Provide `connectDB()` and `disconnectDB()` helper methods for graceful server shutdown and testing.
- */
+const logger = createLogger('product-service', { logLevel: env.LOG_LEVEL });
 
 /**
- * Connects to MongoDB with connection pooling.
- * @returns {Promise<typeof mongoose>}
+ * Connects to MongoDB with connection pooling and event listeners.
+ *
+ * @param {string} [uri] - Optional custom connection string (defaults to env.MONGODB_URI).
+ * @param {import('mongoose').ConnectOptions} [options] - Optional Mongoose connection options.
+ * @returns {Promise<typeof mongoose>} Resolved Mongoose instance.
  */
-export async function connectDB() {
-  // TODO: Implement Mongoose connection logic with retry handling
-  return mongoose.connect(env.MONGODB_URI);
+export async function connectDB(uri = env.MONGODB_URI, options = {}) {
+  // Bind connection event listeners once
+  if (mongoose.connection.listenerCount('connected') === 0) {
+    mongoose.connection.on('connected', () => {
+      logger.info('MongoDB connection established successfully');
+    });
+
+    mongoose.connection.on('error', (err) => {
+      logger.error('MongoDB connection error:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      logger.warn('MongoDB connection lost / disconnected');
+    });
+  }
+
+  const defaultOptions = {
+    serverSelectionTimeoutMS: 5000,
+    ...options,
+  };
+
+  return mongoose.connect(uri, defaultOptions);
 }
 
 /**
- * Disconnects from MongoDB cleanly.
+ * Disconnects cleanly from MongoDB.
+ *
  * @returns {Promise<void>}
  */
 export async function disconnectDB() {
-  // TODO: Implement Mongoose disconnection logic
-  return mongoose.disconnect();
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+    logger.info('MongoDB connection closed cleanly');
+  }
 }
 
 export default {

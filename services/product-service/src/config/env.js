@@ -12,19 +12,15 @@ dotenv.config({ path: serviceEnvPath });
 dotenv.config();
 
 /**
- * TODO 4.1.1: Environment Configuration Schema
- *
- * Define and validate environment variables with fail-fast validation:
- * - PORT: number, default 3002
- * - NODE_ENV: 'development' | 'production' | 'test', default 'development'
- * - MONGODB_URI: string (required MongoDB connection string)
- * - REDIS_URI: string (optional / default 'redis://localhost:6379')
- * - LOG_LEVEL: 'debug' | 'info' | 'warn' | 'error', default 'info'
+ * Environment configuration validation schema for Product Service.
  */
 const envSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(3002),
+  PORT: z.coerce.number().int().positive('PORT must be a positive integer').default(3002),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  MONGODB_URI: z.string().default('mongodb://localhost:27017/ecommerce_products'),
+  MONGODB_URI: z
+    .string()
+    .min(1, 'MONGODB_URI cannot be empty')
+    .default('mongodb://localhost:27017/ecommerce_products'),
   REDIS_URI: z.string().default('redis://localhost:6379'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
