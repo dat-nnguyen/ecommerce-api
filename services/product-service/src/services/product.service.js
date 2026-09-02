@@ -2,19 +2,14 @@ import { NotFoundError, ConflictError } from '@ecommerce/common-errors';
 import productRepository from '../repositories/product.repository.js';
 
 /**
- * TODO 4.3.1: Product Domain Service Layer
+ * Creates a new product in the catalog after verifying SKU uniqueness.
  *
- * Requirements:
- * Implement business logic & validation rules:
- * - createProduct(data): Enforces SKU uniqueness, creates product.
- * - getProductById(id): Retrieves product or throws NotFoundError.
- * - listProducts(queryParams): Formats filter (category, minPrice, maxPrice, search text), sorting, and pagination.
- * - updateProduct(id, updateData): Validates existence and SKU conflicts if SKU changed.
- * - deleteProduct(id): Soft-deletes product.
+ * @param {object} data - Product creation payload.
+ * @param {string} data.sku - Unique SKU code.
+ * @returns {Promise<object>} Created product document.
+ * @throws {ConflictError} If a product with the same SKU already exists.
  */
-
 export async function createProduct(data) {
-  // TODO: Check SKU uniqueness, throw ConflictError if taken
   const existing = await productRepository.findProductBySku(data.sku);
   if (existing) {
     throw new ConflictError(`Product with SKU '${data.sku}' already exists`);
@@ -23,8 +18,14 @@ export async function createProduct(data) {
   return productRepository.createProduct(data);
 }
 
+/**
+ * Retrieves an active product by its unique ObjectId.
+ *
+ * @param {string} id - Product ObjectId.
+ * @returns {Promise<object>} Active product document.
+ * @throws {NotFoundError} If the product does not exist or is inactive.
+ */
 export async function getProductById(id) {
-  // TODO: Find product or throw NotFoundError
   const product = await productRepository.findProductById(id);
   if (!product || !product.isActive) {
     throw new NotFoundError(`Product with id '${id}' not found`);
@@ -32,8 +33,19 @@ export async function getProductById(id) {
   return product;
 }
 
+/**
+ * Lists products from the catalog with optional search, category filter, price range, and pagination.
+ *
+ * @param {object} [query={}] - Query parameters.
+ * @param {string} [query.category] - Filter by category.
+ * @param {string} [query.search] - Full-text search term across name and description.
+ * @param {number|string} [query.minPrice] - Minimum price boundary.
+ * @param {number|string} [query.maxPrice] - Maximum price boundary.
+ * @param {number|string} [query.page=1] - 1-based page number.
+ * @param {number|string} [query.limit=20] - Items per page.
+ * @returns {Promise<{ items: Array<object>, pagination: object }>}
+ */
 export async function listProducts(query = {}) {
-  // TODO: Build MongoDB filter from query params (category, search, price range)
   const filter = { isActive: true };
 
   if (query.category) {
@@ -56,8 +68,16 @@ export async function listProducts(query = {}) {
   return productRepository.findProducts({ filter, page, limit });
 }
 
+/**
+ * Updates an existing product's fields with SKU uniqueness validation.
+ *
+ * @param {string} id - Product ObjectId.
+ * @param {object} updateData - Updated product fields.
+ * @returns {Promise<object>} Updated product document.
+ * @throws {NotFoundError} If the product does not exist or is inactive.
+ * @throws {ConflictError} If the updated SKU is already taken by another product.
+ */
 export async function updateProduct(id, updateData) {
-  // TODO: Validate product exists, check SKU conflicts, apply updates
   const product = await productRepository.findProductById(id);
   if (!product || !product.isActive) {
     throw new NotFoundError(`Product with id '${id}' not found`);
@@ -65,7 +85,8 @@ export async function updateProduct(id, updateData) {
 
   if (updateData.sku && updateData.sku.toUpperCase() !== product.sku) {
     const existing = await productRepository.findProductBySku(updateData.sku);
-    if (existing && existing.id !== id) {
+    const existingId = existing?.id || existing?._id?.toString();
+    if (existing && existingId !== id) {
       throw new ConflictError(`Product with SKU '${updateData.sku}' already exists`);
     }
   }
@@ -73,8 +94,14 @@ export async function updateProduct(id, updateData) {
   return productRepository.updateProduct(id, updateData);
 }
 
+/**
+ * Soft-deletes a product by setting its isActive status to false.
+ *
+ * @param {string} id - Product ObjectId.
+ * @returns {Promise<object>} Soft-deleted product document.
+ * @throws {NotFoundError} If the product does not exist or is already inactive.
+ */
 export async function deleteProduct(id) {
-  // TODO: Soft delete product
   const product = await productRepository.findProductById(id);
   if (!product || !product.isActive) {
     throw new NotFoundError(`Product with id '${id}' not found`);
