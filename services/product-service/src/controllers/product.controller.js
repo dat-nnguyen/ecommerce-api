@@ -1,16 +1,13 @@
 import productService from '../services/product.service.js';
 
 /**
- * TODO 4.4.2: Product HTTP Controllers
+ * Handles product listing with query filters and pagination (GET /api/v1/products).
  *
- * Controllers:
- * - listProducts: GET /api/v1/products
- * - getProduct: GET /api/v1/products/:id
- * - createProduct: POST /api/v1/products (Admin)
- * - updateProduct: PATCH /api/v1/products/:id (Admin)
- * - deleteProduct: DELETE /api/v1/products/:id (Admin)
+ * @param {import('express').Request} req - Express request.
+ * @param {import('express').Response} res - Express response.
+ * @param {import('express').NextFunction} next - Express next middleware.
+ * @returns {Promise<void>}
  */
-
 export async function listProducts(req, res, next) {
   try {
     const query = req.validatedData?.query || req.query;
@@ -26,6 +23,14 @@ export async function listProducts(req, res, next) {
   }
 }
 
+/**
+ * Handles single product lookup by ID (GET /api/v1/products/:id).
+ *
+ * @param {import('express').Request} req - Express request.
+ * @param {import('express').Response} res - Express response.
+ * @param {import('express').NextFunction} next - Express next middleware.
+ * @returns {Promise<void>}
+ */
 export async function getProduct(req, res, next) {
   try {
     const { id } = req.params;
@@ -40,6 +45,14 @@ export async function getProduct(req, res, next) {
   }
 }
 
+/**
+ * Handles product creation (POST /api/v1/products).
+ *
+ * @param {import('express').Request} req - Express request.
+ * @param {import('express').Response} res - Express response.
+ * @param {import('express').NextFunction} next - Express next middleware.
+ * @returns {Promise<void>}
+ */
 export async function createProduct(req, res, next) {
   try {
     const payload = req.validatedData?.body || req.body;
@@ -55,6 +68,14 @@ export async function createProduct(req, res, next) {
   }
 }
 
+/**
+ * Handles partial product updates (PATCH /api/v1/products/:id).
+ *
+ * @param {import('express').Request} req - Express request.
+ * @param {import('express').Response} res - Express response.
+ * @param {import('express').NextFunction} next - Express next middleware.
+ * @returns {Promise<void>}
+ */
 export async function updateProduct(req, res, next) {
   try {
     const { id } = req.params;
@@ -71,6 +92,14 @@ export async function updateProduct(req, res, next) {
   }
 }
 
+/**
+ * Handles product soft deletion (DELETE /api/v1/products/:id).
+ *
+ * @param {import('express').Request} req - Express request.
+ * @param {import('express').Response} res - Express response.
+ * @param {import('express').NextFunction} next - Express next middleware.
+ * @returns {Promise<void>}
+ */
 export async function deleteProduct(req, res, next) {
   try {
     const { id } = req.params;

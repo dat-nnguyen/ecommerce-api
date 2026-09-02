@@ -1,26 +1,31 @@
 import { Router } from 'express';
-import * as productController from '../controllers/product.controller.js';
-
-/**
- * TODO 4.4.3: Product Express Routes Wiring
- *
- * Routes:
- * - GET /api/v1/products -> listProducts (Public)
- * - GET /api/v1/products/:id -> getProduct (Public)
- * - POST /api/v1/products -> createProduct (Admin Only)
- * - PATCH /api/v1/products/:id -> updateProduct (Admin Only)
- * - DELETE /api/v1/products/:id -> deleteProduct (Admin Only)
- */
+import { validate } from '../middlewares/validate.js';
+import {
+  productIdParamSchema,
+  createProductSchema,
+  updateProductSchema,
+  queryProductsSchema,
+} from '../validators/product.validator.js';
+import productController from '../controllers/product.controller.js';
 
 const router = Router();
 
-// Public routes
-router.get('/', productController.listProducts);
-router.get('/:id', productController.getProduct);
+// ----------------------------------------------------
+// Public Routes
+// ----------------------------------------------------
+router.get('/', validate(queryProductsSchema), productController.listProducts);
+router.get('/:id', validate(productIdParamSchema), productController.getProduct);
 
-// Admin-protected routes (TODO: attach authenticate, authorize('ADMIN'), and validation middlewares)
-router.post('/', productController.createProduct);
-router.patch('/:id', productController.updateProduct);
-router.delete('/:id', productController.deleteProduct);
+// ----------------------------------------------------
+// Admin Mutation Routes
+// ----------------------------------------------------
+router.post('/', validate(createProductSchema), productController.createProduct);
+router.patch(
+  '/:id',
+  validate(productIdParamSchema),
+  validate(updateProductSchema),
+  productController.updateProduct
+);
+router.delete('/:id', validate(productIdParamSchema), productController.deleteProduct);
 
 export default router;
