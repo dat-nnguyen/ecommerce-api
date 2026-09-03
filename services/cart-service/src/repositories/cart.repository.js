@@ -94,7 +94,7 @@ export async function clearCart(cartKey) {
 
 /**
  * Merges an anonymous guest cart into an authenticated user's cart in Redis.
- * Items present in both carts have their quantities summed (capped at 99).
+ * Items present in both carts have their quantities summed.
  * Preserves the Redis Hash structure and deletes the guest cart.
  *
  * @param {string} sourceKey - Redis key for the guest cart (`cart:guest:{guestSessionId}`).
@@ -116,11 +116,11 @@ export async function mergeCart(sourceKey, targetKey) {
     mergedMap.set(item.productId, { ...item });
   }
 
-  // Merge guest items, combining quantities up to 99
+  // Merge guest items, combining quantities
   for (const item of guestItems) {
     if (mergedMap.has(item.productId)) {
       const existing = mergedMap.get(item.productId);
-      existing.quantity = Math.min(99, existing.quantity + item.quantity);
+      existing.quantity += item.quantity;
     } else {
       mergedMap.set(item.productId, { ...item });
     }

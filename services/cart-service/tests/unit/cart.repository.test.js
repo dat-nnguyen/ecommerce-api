@@ -127,7 +127,7 @@ describe('Cart Repository Layer (Unit Tests)', () => {
       expect(result).toEqual([userItem]);
     });
 
-    it('should merge guest items into user cart, combine quantities (capped at 99), and delete guest cart', async () => {
+    it('should merge guest items into user cart, combine quantities, and delete guest cart', async () => {
       const guestItem1 = { productId: 'p1', name: 'Keyboard', price: 100, quantity: 5 };
       const guestItem2 = { productId: 'p2', name: 'Mouse', price: 50, quantity: 2 };
       const userItem1 = { productId: 'p1', name: 'Keyboard', price: 100, quantity: 96 };
@@ -144,11 +144,11 @@ describe('Cart Repository Layer (Unit Tests)', () => {
 
       const result = await cartRepository.mergeCart('cart:guest:g1', 'cart:user:u1');
 
-      // p1 quantity was 96 + 5 = 101 -> capped at 99
+      // p1 quantity was 96 + 5 = 101
       const mergedP1 = result.find((i) => i.productId === 'p1');
       const mergedP2 = result.find((i) => i.productId === 'p2');
 
-      expect(mergedP1.quantity).toBe(99);
+      expect(mergedP1.quantity).toBe(101);
       expect(mergedP2.quantity).toBe(2);
 
       // Verify pipeline saved items to targetKey and deleted sourceKey

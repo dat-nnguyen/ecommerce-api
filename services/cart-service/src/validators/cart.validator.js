@@ -41,7 +41,6 @@ export const addItemSchema = z.object({
       .number()
       .int('Quantity must be an integer')
       .min(1, 'Quantity must be at least 1')
-      .max(99, 'Quantity cannot exceed 99')
       .default(1),
     image: z.string().url('Image must be a valid URL string').optional(),
   }),
@@ -58,8 +57,7 @@ export const updateQuantitySchema = z.object({
     quantity: z.coerce
       .number({ required_error: 'Quantity is required' })
       .int('Quantity must be an integer')
-      .min(0, 'Quantity must be a non-negative integer')
-      .max(99, 'Quantity cannot exceed 99'),
+      .min(0, 'Quantity must be a non-negative integer'),
   }),
 });
 

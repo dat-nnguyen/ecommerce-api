@@ -66,16 +66,16 @@ describe('Cart Request Validation Schemas (Unit Tests)', () => {
       expect(result.error.issues[0].message).toContain('Price must be non-negative');
     });
 
-    it('should reject quantity exceeding 99 or below 1', async () => {
-      const overMax = await addItemSchema.safeParseAsync({
-        body: { ...validBody, quantity: 100 },
+    it('should allow large quantities and reject quantity below 1', async () => {
+      const largeQty = await addItemSchema.safeParseAsync({
+        body: { ...validBody, quantity: 250 },
       });
       const zeroQty = await addItemSchema.safeParseAsync({
         body: { ...validBody, quantity: 0 },
       });
 
-      expect(overMax.success).toBe(false);
-      expect(overMax.error.issues[0].message).toContain('cannot exceed 99');
+      expect(largeQty.success).toBe(true);
+      expect(largeQty.data.body.quantity).toBe(250);
       expect(zeroQty.success).toBe(false);
       expect(zeroQty.error.issues[0].message).toContain('at least 1');
     });
@@ -90,24 +90,24 @@ describe('Cart Request Validation Schemas (Unit Tests)', () => {
   });
 
   describe('updateQuantitySchema', () => {
-    it('should validate non-negative integer quantity within 0-99', async () => {
+    it('should validate non-negative integer quantity including large quantities', async () => {
       const validZero = await updateQuantitySchema.safeParseAsync({ body: { quantity: 0 } });
       const validFive = await updateQuantitySchema.safeParseAsync({ body: { quantity: 5 } });
+      const validLarge = await updateQuantitySchema.safeParseAsync({ body: { quantity: 500 } });
 
       expect(validZero.success).toBe(true);
       expect(validZero.data.body.quantity).toBe(0);
       expect(validFive.success).toBe(true);
       expect(validFive.data.body.quantity).toBe(5);
+      expect(validLarge.success).toBe(true);
+      expect(validLarge.data.body.quantity).toBe(500);
     });
 
-    it('should reject negative quantity or quantity over 99', async () => {
+    it('should reject negative quantity', async () => {
       const negative = await updateQuantitySchema.safeParseAsync({ body: { quantity: -1 } });
-      const overMax = await updateQuantitySchema.safeParseAsync({ body: { quantity: 150 } });
 
       expect(negative.success).toBe(false);
       expect(negative.error.issues[0].message).toContain('non-negative');
-      expect(overMax.success).toBe(false);
-      expect(overMax.error.issues[0].message).toContain('cannot exceed 99');
     });
 
     it('should reject non-integer quantity', async () => {
