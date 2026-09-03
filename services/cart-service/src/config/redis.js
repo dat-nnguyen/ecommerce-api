@@ -13,7 +13,7 @@ let redisClient = null;
 /**
  * Creates and configures a new ioredis client instance.
  *
- * @param {string} [customUri] - Optional Redis URI override.
+ * @param {string} [customUri] - Optional Redis URI(Uniform Resource Identifier) override.
  * @param {import('ioredis').RedisOptions} [customOptions] - Optional connection options.
  * @returns {import('ioredis').Redis} Configured ioredis instance.
  */
