@@ -1,67 +1,71 @@
-import 'dotenv/config';
-import express from 'express';
-import {
-  createLogger,
-  createMetrics,
-  createTraceMiddleware,
-  createHttpLoggerMiddleware,
-  createHttpMetricsMiddleware,
-} from '@ecommerce/logger';
-import { errorHandler, NotFoundError } from '@ecommerce/common-errors';
+import { app, logger } from './app.js';
+import env from './config/env.js';
+import { connectRedis, disconnectRedis } from './config/redis.js';
+
+let server;
 
 /**
- * Express application instance for Cart Service.
- * @type {express.Express}
+ * Starts the Cart Service HTTP server and connects to Redis.
  */
-const app = express();
-const PORT = process.env.PORT || 3003;
-const logger = createLogger('cart-service');
-const metrics = createMetrics('cart-service');
+async function startServer() {
+  try {
+    // Connect to Redis database
+    await connectRedis();
+    logger.info('Connected to Redis database');
 
-app.use(express.json());
-
-// ----------------------------------------------------
-// Global Middlewares (Tracing, Metrics, HTTP Logging)
-// ----------------------------------------------------
-app.use(createTraceMiddleware());
-app.use(createHttpMetricsMiddleware(metrics));
-app.use(createHttpLoggerMiddleware(logger));
-
-// ----------------------------------------------------
-// Health & Observability Endpoints
-// ----------------------------------------------------
-/**
- * Prometheus metrics scrape endpoint.
- */
-app.get('/metrics', metrics.metricsHandler);
-
-/**
- * Service healthcheck probe.
- */
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', service: 'cart-service' });
-});
-
-// ----------------------------------------------------
-// Cart Routes (Placeholder)
-// ----------------------------------------------------
-app.get('/api/v1/cart', (req, res) => {
-  res.status(200).json({ success: true, data: { items: [] } });
-});
-
-// ----------------------------------------------------
-// Error Handling
-// ----------------------------------------------------
-app.use((req, res, next) => {
-  next(new NotFoundError(`Route ${req.method} ${req.originalUrl} not found`));
-});
-
-app.use(errorHandler);
-
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    logger.info(`Cart service listening on port ${PORT}`);
-  });
+    server = app.listen(env.PORT, () => {
+      logger.info(`Cart Service listening on port ${env.PORT} in ${env.NODE_ENV} mode`);
+    });
+  } catch (error) {
+    logger.error('Failed to start Cart Service:', error);
+    process.exit(1);
+  }
 }
 
-export default app;
+/**
+ * Gracefully shuts down the HTTP server and disconnects from Redis.
+ *
+ * @param {string} signal - The termination signal received.
+ */
+async function gracefulShutdown(signal) {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  if (server) {
+    server.close(async () => {
+      logger.info('HTTP server closed.');
+      try {
+        await disconnectRedis();
+        logger.info('Redis connection closed.');
+        process.exit(0);
+      } catch (err) {
+        logger.error('Error during Redis disconnect:', err);
+        process.exit(1);
+      }
+    });
+
+    // Fallback force shutdown timeout
+    setTimeout(() => {
+      logger.error('Forced shutdown due to timeout.');
+      process.exit(1);
+    }, 10000).unref();
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { server };
+export default server;
