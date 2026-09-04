@@ -171,28 +171,80 @@
 
 ---
 
-## 🔮 Upcoming Phases & Roadmap
+### ✅ Phase 5: Cart Service (Milestone 5)
 
-### 🛒 Phase 5: Cart Service (Milestone 5)
+- [x] **TODO 5.1: Service Skeleton, Fail-Fast Config & Redis Lifecycle Integration**
+  - **Fail-Fast Zod Configuration (`src/config/env.js`)**:
+    - Strict validation for `PORT` (default 3003), `NODE_ENV` (`development`, `production`, `test`), `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_URI`, `CART_TTL_SECONDS` (default 604,800s / 7 days, with inline `.env` comment preprocessing), and `LOG_LEVEL`.
+    - Fail-fast process termination (`process.exit(1)`) with detailed diagnostics on configuration failure.
+    - Exports a frozen, typed, immutable configuration object (`Object.freeze`).
+  - **Redis Connection & Lifecycle Management (`src/config/redis.js`)**:
+    - Centralized `ioredis` client configuration with exponential backoff reconnection strategy (`retryStrategy`).
+    - Active lifecycle event listeners (`connect`, `ready`, `error`, `close`, `reconnecting`) logging through `@ecommerce/logger`.
+    - Singleton accessors: `getRedisClient()`, `connectRedis()`, `createRedisClient()`, and graceful teardown `disconnectRedis()` using `client.quit()` with fallback forced disconnect.
+  - **Server & App Decoupling (`src/app.js`, `src/server.js`)**:
+    - Decoupled Express app definition from HTTP server listener for supertest isolation.
+    - Observability middlewares: request tracing context (`createTraceMiddleware`), Prometheus request duration histogram (`createHttpMetricsMiddleware`), and HTTP access logging (`createHttpLoggerMiddleware`).
+    - Core endpoints: `/health` service health check and `/metrics` Prometheus scrape endpoint.
+    - Graceful process termination capturing `SIGTERM`, `SIGINT`, `unhandledRejection`, and `uncaughtException`, draining active requests and disconnecting Redis cleanly.
 
-- [ ] **TODO 5.1: Cart Service Scaffolding & Redis Integration**
-  - Redis client singleton (`ioredis`) & connection healthchecks.
-  - Fail-fast Zod configuration (`src/config/env.js`).
-  - Express app & server skeleton with graceful shutdown, `/health`, and Prometheus `/metrics`.
-- [ ] **TODO 5.2: Cart Repository & Data Access Layer**
-  - Redis Hash data structure for cart items: `cart:{userId}` / `cart:{guestSessionId}`.
-  - Add item, update item quantity, remove item, clear cart.
-  - Guest-to-user cart merging logic upon user login.
-  - Cart TTL management (e.g. 7-day automatic key expiration).
-- [ ] **TODO 5.3: Cart Domain Service & Validation**
-  - Cross-service product availability & price lookup validation.
-  - Zod request schemas (`addItemSchema`, `updateQuantitySchema`, `mergeCartSchema`).
-- [ ] **TODO 5.4: HTTP Transport & Integration Testing**
-  - Routes mounted under `/api/v1/cart`.
-  - Controllers for `getCart`, `addItem`, `updateItem`, `removeItem`, `clearCart`, `mergeCart`.
-  - Integration tests with Redis mock.
+- [x] **TODO 5.2: Redis Cart Data Access & Repository Layer (`src/repositories/cart.repository.js`)**
+  - **Redis Hash Data Structure**:
+    - Stores carts using Redis Hashes for sub-millisecond atomic field mutations: key `cart:{userId}` (authenticated) or `cart:guest:{guestSessionId}` (anonymous guest).
+    - Hash field: `productId` (24-hex string); Hash value: JSON stringified item payload (`productId`, `name`, `price`, `quantity`, `image`).
+    - Sliding TTL management: automatically refreshes key TTL (`CART_TTL_SECONDS`) on every write.
+  - **Repository Methods**:
+    - `getCart`: Executes `HGETALL` and parses all JSON item entries into an array.
+    - `getCartItem`: Executes `HGET` for a specific product ID and parses the JSON string.
+    - `saveCartItem` & `updateCartItem`: Atomically sets hash field (`HSET`) and refreshes key expiration (`EXPIRE`) inside an `ioredis` pipeline.
+    - `deleteCartItem`: Executes `HDEL` to remove a single product field from the cart hash.
+    - `clearCart`: Executes `DEL` to delete the entire cart key upon checkout or manual reset.
+    - `mergeCart`: Transfers and accumulates items from guest cart to user cart in an atomic pipeline, supporting bulk order quantities without artificial caps, refreshing target TTL, and deleting the source guest cart.
+
+- [x] **TODO 5.3: Cart Domain Service & Business Logic (`src/services/cart.service.js`)**
+  - **Identity Resolution (`resolveCartKey`)**:
+    - Synchronously resolves storage key from `userId` (`cart:{userId}`) or `guestSessionId` (`cart:guest:{guestSessionId}`).
+    - Throws `BadRequestError` if neither identity parameter is provided.
+  - **Cart Summary & Float Rounding (`formatCartResponse`)**:
+    - Calculates total `itemCount` across all cart items.
+    - Computes `subtotal` with floating-point math precision rounding to 2 decimal places (`Math.round(rawSubtotal * 100) / 100`).
+  - **Domain Business Operations**:
+    - `getCart`: Retrieves and formats current cart items with computed summary.
+    - `addItem`: Accumulates quantity if product already exists in cart; inserts new item otherwise.
+    - `updateCartItem`: Verifies item presence (`NotFoundError`), updates quantity, or triggers automatic deletion if `quantity <= 0`.
+    - `removeCartItem`: Verifies item presence (`NotFoundError`) and deletes product field from cart.
+    - `clearCart`: Empties cart and returns zeroed summary `{ items: [], itemCount: 0, subtotal: 0 }`.
+    - `mergeCart`: Enforces presence of both `userId` and `guestSessionId` (`BadRequestError`), coordinates atomic repository merge, and returns final user cart.
+
+- [x] **TODO 5.4: Request Validation, HTTP Controllers & Route Wiring**
+  - **Zod Validation Schemas (`src/validators/cart.validator.js`)**:
+    - `productIdParamSchema`: Validates 24-character hexadecimal MongoDB ObjectIds in route params.
+    - `addItemSchema`: Validates `productId`, trimmed `name`, non-negative `price`, integer `quantity` (min 1, defaulted to 1), and optional `image` URL.
+    - `updateQuantitySchema`: Validates integer `quantity` (min 0, where 0 signals item removal).
+    - `mergeCartSchema`: Validates non-empty `guestSessionId` in request body.
+  - **Validation Middleware (`src/middlewares/validate.js`)**:
+    - Express middleware executing `schema.safeParseAsync({ body, query, params })`.
+    - Converts Zod parsing errors into field-level arrays and forwards uniform `ValidationError` (HTTP 400).
+    - Attaches coerced and sanitized values to `req.validatedData`, `req.body`, `req.query`, and `req.params`.
+  - **HTTP Controller Handlers (`src/controllers/cart.controller.js`)**:
+    - Identity extraction from `req.user?.id` / header `x-user-id` and header `x-guest-session-id`.
+    - Endpoints returning standardized JSON envelopes `{ success: true, data }` with HTTP status 200:
+      - `GET /api/v1/cart`: Retrieve current cart.
+      - `POST /api/v1/cart/items`: Add item to cart.
+      - `PATCH /api/v1/cart/items/:productId`: Update item quantity.
+      - `DELETE /api/v1/cart/items/:productId`: Remove item from cart.
+      - `DELETE /api/v1/cart`: Clear entire cart.
+      - `POST /api/v1/cart/merge`: Merge guest cart into user cart.
+  - **Router & Application Wiring (`src/routes/cart.routes.js`, `src/app.js`)**:
+    - Express Router mounted under `/api/v1/cart` with route-level validation middlewares and controllers.
+
+- [x] **Unit & Integration Test Suites**:
+  - **77 passing unit & integration tests** across 9 test suites in `cart-service`.
+  - **235 total passing tests** across the entire monorepo (`pnpm test` with 100% pass rate).
 
 ---
+
+## 🔮 Upcoming Phases & Roadmap
 
 ### 📦 Phase 6: Order Service & Saga Orchestration (Milestone 6)
 
