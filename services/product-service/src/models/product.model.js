@@ -1,25 +1,14 @@
 import mongoose from 'mongoose';
 
 /**
- * TODO 4.2.1: Product Mongoose Schema & Compound Indexes
+ * Product Mongoose Schema definition.
  *
- * Requirements:
- * 1. Define fields:
- *    - name: String (required, trimmed, max 200)
- *    - description: String (required, max 2000)
- *    - price: Number (required, min 0)
- *    - category: String (required, indexed)
- *    - stock: Number (required, integer, min 0, default 0)
- *    - sku: String (required, unique, uppercase)
- *    - images: [String] (array of image URLs)
- *    - isActive: Boolean (default true)
- *    - timestamps: true (createdAt, updatedAt)
- * 2. Define Compound & Text Indexes:
- *    - Text index on { name: 'text', description: 'text' } for full-text catalog search.
- *    - Compound index on { category: 1, price: 1 } for fast filtered queries.
- *    - Compound index on { isActive: 1, createdAt: -1 } for storefront listing.
+ * Configured with:
+ * - Text search index on name and description
+ * - Compound index on category and price for filtered queries
+ * - Compound index on isActive and createdAt for storefront listing
+ * - Custom toJSON transform replacing _id with id and stripping __v
  */
-
 const productSchema = new mongoose.Schema(
   {
     name: {
