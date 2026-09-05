@@ -1,0 +1,21 @@
+-- TODO 6.1.3: Database Migration - Orders & Order Items Tables
+-- 
+-- Requirements:
+-- 1. Create enum type for order_status: 'PENDING', 'PAYMENT_PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'
+-- 2. Create table 'orders':
+--    - id (UUID, PRIMARY KEY, DEFAULT gen_random_uuid())
+--    - user_id (VARCHAR(255), NOT NULL)
+--    - status (order_status, DEFAULT 'PENDING')
+--    - total_amount (NUMERIC(12, 2), NOT NULL)
+--    - currency (VARCHAR(3), DEFAULT 'USD')
+--    - created_at (TIMESTAMPTZ, DEFAULT NOW())
+--    - updated_at (TIMESTAMPTZ, DEFAULT NOW())
+-- 3. Create table 'order_items':
+--    - id (UUID, PRIMARY KEY, DEFAULT gen_random_uuid())
+--    - order_id (UUID REFERENCES orders(id) ON DELETE CASCADE)
+--    - product_id (VARCHAR(255), NOT NULL)
+--    - name (VARCHAR(255), NOT NULL)
+--    - price (NUMERIC(12, 2), NOT NULL)
+--    - quantity (INTEGER NOT NULL CHECK (quantity > 0))
+--    - subtotal (NUMERIC(12, 2) NOT NULL)
+-- 4. Create indexes on orders(user_id), orders(status), orders(created_at DESC), order_items(order_id).
