@@ -14,6 +14,8 @@ export const ROUTING_KEYS = {
   ORDER_CANCELLED: 'order.cancelled',
   PAYMENT_COMPLETED: 'payment.completed',
   PAYMENT_FAILED: 'payment.failed',
+  INVENTORY_RESERVED: 'inventory.reserved',
+  INVENTORY_FAILED: 'inventory.failed',
 };
 
 export default {
