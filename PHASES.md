@@ -244,20 +244,73 @@
 
 ---
 
-## 🔮 Upcoming Phases & Roadmap
+### ✅ Phase 6: Order Service & Saga Orchestrator (Milestone 6)
 
-### 📦 Phase 6: Order Service & Saga Orchestration (Milestone 6)
+- [x] **TODO 6.1: Service Skeleton, Fail-Fast Config & Database Migrations**
+  - **Fail-Fast Zod Configuration (`src/config/env.js`)**:
+    - Strict validation for `PORT` (default 3004), `NODE_ENV`, `DATABASE_URL`, `RABBITMQ_URL`, and `LOG_LEVEL`.
+    - Fail-fast process termination with diagnostics on invalid configuration.
+  - **PostgreSQL Connection Pool & Lifecycle (`src/config/db.js`)**:
+    - Connection pooling via `pg.Pool` with idle/connection timeouts and logging.
+    - Transaction execution helper (`transaction(callback)`) using PostgreSQL `BEGIN`, `COMMIT`, and `ROLLBACK`.
+    - Clean `connectDB()` and `disconnectDB()` helpers for startup and teardown.
+  - **Schema Migrations (`migrations/001_init_orders.sql`, `src/config/migrate.js`)**:
+    - Normalized SQL tables: `orders` (UUID primary key, user ID, status enum check, total amount numeric, currency, timestamps) and `order_items` (UUID primary key, foreign key cascade, product ID, name, price, quantity).
+    - Composite and lookup indexes: `idx_orders_user_id`, `idx_orders_status`, `idx_orders_created_at`, `idx_order_items_order_id`.
+    - Programmatic migration runner executing DDL scripts with fail-fast logging.
 
-- [ ] **TODO 6.1: Order State Machine & Database**
-  - PostgreSQL schema for orders & order items with Prisma.
-  - State machine: `PENDING` -> `PAYMENT_PENDING` -> `CONFIRMED` -> `SHIPPED` -> `DELIVERED` / `CANCELLED`.
-- [ ] **TODO 6.2: RabbitMQ Event Integration**
-  - Event publishers for `OrderCreated`, `OrderCancelled`.
-  - Event consumers for payment and inventory status events.
-- [ ] **TODO 6.3: Order Saga Workflow**
-  - Compensating transactions for out-of-stock or payment failure scenarios.
+- [x] **TODO 6.2: State Machine, Data Access & Repository Layer**
+  - **Order State Machine Model (`src/models/order.model.js`)**:
+    - Order status enum: `PENDING`, `PAYMENT_PENDING`, `CONFIRMED`, `SHIPPED`, `DELIVERED`, `CANCELLED`.
+    - Finite State Machine transition rules and validator: `isValidTransition(from, to)` and `assertValidTransition(from, to)`.
+    - Helper formatters transforming database snake_case rows into camelCase domain entities.
+  - **Repository Layer Pattern (`src/repositories/order.repository.js`)**:
+    - Isolated data access using raw SQL queries with parameterization: `createOrder` (transactional order + items batch insert), `findOrderById` (with items joined), `findOrdersByUserId` (paginated with total count), `updateOrderStatus` (conditional update), `updateOrderPaymentStatus`.
+
+- [x] **TODO 6.3: RabbitMQ Integration & Event Publisher**
+  - **RabbitMQ Connection Management (`src/config/rabbitmq.js`)**:
+    - Connection pooling and channel management using `amqplib`.
+    - Topic exchange assertion (`ecommerce.events`) and clean lifecycle disconnection.
+  - **Domain Event Publisher (`src/events/order.publisher.js`)**:
+    - Publishes wrapped event contracts (`eventId`, `eventType`, `timestamp`, `traceId`, `payload`) to topic exchange:
+      - `publishOrderCreated`: Emits `order.created` triggering inventory reservation.
+      - `publishOrderCancelled`: Emits `order.cancelled` triggering compensating releases.
+
+- [x] **TODO 6.4: Saga Orchestration, Consumers & Domain Service**
+  - **Saga Background Event Consumers (`src/consumers/`)**:
+    - `inventory.consumer.js`: Listens for `inventory.reserved` (transitions order to `PAYMENT_PENDING`) and `inventory.failed` (cancels order and records failure).
+    - `payment.consumer.js`: Listens for `payment.completed` (transitions order to `CONFIRMED`) and `payment.failed` (cancels order and publishes `order.cancelled` compensation event to release inventory).
+    - Durable queues with Dead-Lettering and automatic manual acknowledgment (`ack`/`nack`).
+  - **Domain Service (`src/services/order.service.js`)**:
+    - `createOrder`: Validates items, calculates total amount with 2-decimal precision, persists order and items within transaction, and emits `order.created` saga trigger.
+    - `getOrderById`: Verifies order existence and ownership or admin authorization.
+    - `listOrders`: Paginated order query for user or admin.
+    - `cancelOrder`: Asserts valid lifecycle transition, updates status to `CANCELLED`, and emits `order.cancelled` saga compensation event.
+
+- [x] **TODO 6.5: Validation, Auth Middlewares & HTTP Transport**
+  - **Zod Schemas (`src/validators/order.validator.js`)**:
+    - `orderIdParamSchema`: Validates UUID in route params.
+    - `createOrderSchema`: Validates line items, 24-hex product IDs, positive prices, integer quantities, and ISO currency.
+    - `queryOrdersSchema`: Coerces pagination parameters (`page`, `limit`).
+    - `cancelOrderSchema`: Validates optional cancellation reason.
+  - **Middlewares & Handlers (`src/middlewares/`, `src/controllers/`, `src/routes/`)**:
+    - `auth.middleware.js`: Extracts `x-user-id` and `x-user-role` headers forwarded from Kong API Gateway.
+    - `validate.js`: Validates request schemas and formats uniform `ValidationError` (HTTP 400).
+    - `order.controller.js` & `order.routes.js`: Maps HTTP requests to domain service methods.
+
+- [x] **TODO 6.6: Server Decoupling & Runtime Orchestration**
+  - **App & Server Decoupling (`src/app.js`, `src/server.js`)**:
+    - Decoupled Express app with tracing context, Prometheus metrics (`/metrics`), health check (`/health`), 404 handler, and global error middleware.
+    - `server.js` startup connects PostgreSQL, connects RabbitMQ, boots saga consumers, and listens on configured port.
+    - Graceful shutdown draining HTTP requests, closing RabbitMQ channels, and disconnecting DB pool.
+
+- [x] **Unit & Integration Test Suites**:
+  - **115 passing unit & integration tests** across 17 test suites in `order-service`.
+  - **350 total passing tests** across the entire monorepo (`pnpm test` with 100% pass rate).
 
 ---
+
+## 🔮 Upcoming Phases & Roadmap
 
 ### 💳 Phase 7: Payment Service (Milestone 7)
 
