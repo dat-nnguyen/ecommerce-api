@@ -1,0 +1,939 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "E-Commerce Microservices Platform API",
+    "description": "Production-grade, distributed microservices e-commerce platform built with Node.js, Express, PostgreSQL, MongoDB, Redis, and RabbitMQ event-driven Saga choreography.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Engineering Team",
+      "url": "https://github.com/dat-nnguyen/ecommerce-api"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Kong API Gateway (Unified Entrypoint)"
+    },
+    {
+      "url": "http://localhost:3001",
+      "description": "Direct Auth Service"
+    },
+    {
+      "url": "http://localhost:3002",
+      "description": "Direct User Service"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Direct Product Service"
+    },
+    {
+      "url": "http://localhost:3003",
+      "description": "Direct Cart Service"
+    },
+    {
+      "url": "http://localhost:3004",
+      "description": "Direct Order Service"
+    },
+    {
+      "url": "http://localhost:3005",
+      "description": "Direct Payment Service"
+    }
+  ],
+  "tags": [
+    { "name": "Authentication", "description": "User registration, authentication, JWT tokens, and password management" },
+    { "name": "Users", "description": "User profiles, identity, and administrative account management" },
+    { "name": "Products", "description": "Catalog browsing, filtering, search, and inventory management" },
+    { "name": "Categories", "description": "Product taxonomy and category hierarchy" },
+    { "name": "Cart", "description": "High-throughput Redis cart, line item updates, and guest session merging" },
+    { "name": "Orders", "description": "Order placement, Saga state management, and lifecycle progression" },
+    { "name": "Payments", "description": "External payment gateway charges, distributed idempotency, and refunds" }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new customer account",
+        "operationId": "registerUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "customer@example.com" },
+                  "password": { "type": "string", "minLength": 8, "example": "SecureP@ssw0rd!" },
+                  "name": { "type": "string", "example": "Jane Doe" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User account created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400BadRequest" },
+          "409": { "$ref": "#/components/responses/409Conflict" }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Authenticate user credentials and issue JWT tokens",
+        "operationId": "loginUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "customer@example.com" },
+                  "password": { "type": "string", "example": "SecureP@ssw0rd!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthSuccessResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Refresh expired access token using a refresh token",
+        "operationId": "refreshToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "accessToken": { "type": "string" },
+                        "expiresIn": { "type": "integer", "example": 900 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/users/profile": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Retrieve authenticated user's profile",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/UserProfile" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401Unauthorized" }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update authenticated user's profile",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Jane Smith" },
+                  "avatar": { "type": "string", "format": "uri", "example": "https://cdn.example.com/avatars/jane.jpg" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/UserProfile" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400BadRequest" },
+          "401": { "$ref": "#/components/responses/401Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "List catalog products with pagination, category filter, and price range",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "minPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "maxPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["price_asc", "price_desc", "newest"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Product" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/PaginationMetadata" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create a new product (Admin only)",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "price", "stock"],
+                "properties": {
+                  "name": { "type": "string", "example": "Wireless Noise-Cancelling Headphones" },
+                  "description": { "type": "string", "example": "Premium sound quality with 40-hour battery life" },
+                  "price": { "type": "number", "minimum": 0, "example": 199.99 },
+                  "stock": { "type": "integer", "minimum": 0, "example": 50 },
+                  "category": { "type": "string", "example": "Electronics" },
+                  "images": { "type": "array", "items": { "type": "string", "format": "uri" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400BadRequest" },
+          "401": { "$ref": "#/components/responses/401Unauthorized" },
+          "403": { "$ref": "#/components/responses/403Forbidden" }
+        }
+      }
+    },
+    "/api/v1/products/{id}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Retrieve product details by product ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/404NotFound" }
+        }
+      }
+    },
+    "/api/v1/cart": {
+      "get": {
+        "tags": ["Cart"],
+        "summary": "Retrieve current user or guest cart contents",
+        "parameters": [
+          { "name": "x-guest-session-id", "in": "header", "schema": { "type": "string" }, "description": "Required for unauthenticated guest carts" }
+        ],
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "Current cart summary and line items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Cart" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Clear entire cart",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "Cart cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Cart cleared successfully" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cart/items": {
+      "post": {
+        "tags": ["Cart"],
+        "summary": "Add item to cart or increment existing quantity",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId", "price"],
+                "properties": {
+                  "productId": { "type": "string", "example": "65e23a9d9c0b4ef8bb6d6bb9" },
+                  "name": { "type": "string", "example": "Mechanical Keyboard" },
+                  "price": { "type": "number", "minimum": 0, "example": 89.99 },
+                  "quantity": { "type": "integer", "minimum": 1, "default": 1, "example": 1 },
+                  "image": { "type": "string", "format": "uri" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Cart" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cart/items/{productId}": {
+      "patch": {
+        "tags": ["Cart"],
+        "summary": "Update quantity of a specific cart item",
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": {
+                  "quantity": { "type": "integer", "minimum": 0, "example": 3 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cart item quantity updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Cart" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Remove a specific item from cart",
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item removed from cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Cart" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Place a new order with line items and start distributed Saga",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "currency": { "type": "string", "default": "USD", "example": "USD" },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["productId", "price", "quantity"],
+                      "properties": {
+                        "productId": { "type": "string", "example": "65e23a9d9c0b4ef8bb6d6bb9" },
+                        "name": { "type": "string", "example": "Mechanical Keyboard" },
+                        "price": { "type": "number", "minimum": 0.01, "example": 89.99 },
+                        "quantity": { "type": "integer", "minimum": 1, "example": 2 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created in PENDING state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Order created successfully" },
+                    "data": { "$ref": "#/components/schemas/Order" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400BadRequest" },
+          "401": { "$ref": "#/components/responses/401Unauthorized" }
+        }
+      },
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Retrieve paginated orders for the authenticated user",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Order" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/PaginationMetadata" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Retrieve order details and line items by order UUID",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details with line items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Order" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/404NotFound" }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/cancel": {
+      "patch": {
+        "tags": ["Orders"],
+        "summary": "Cancel order and trigger downstream Saga compensating transactions",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": { "type": "string", "example": "Customer changed mind" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Order" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/process": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Process a monetary charge with distributed idempotency protection",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "parameters": [
+          { "name": "Idempotency-Key", "in": "header", "schema": { "type": "string" }, "description": "Unique key to ensure exactly-once charge processing" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["orderId", "amount"],
+                "properties": {
+                  "orderId": { "type": "string", "format": "uuid", "example": "b1ffcd88-8b1a-4ef8-bb6d-6bb9bd380a22" },
+                  "amount": { "type": "number", "minimum": 0.01, "example": 179.98 },
+                  "currency": { "type": "string", "default": "USD", "example": "USD" },
+                  "paymentMethod": { "type": "string", "default": "card", "example": "card" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment processed and completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Payment processed successfully" },
+                    "data": { "$ref": "#/components/schemas/Payment" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400BadRequest" },
+          "409": {
+            "description": "Idempotency conflict: in-progress or parameter mismatch",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Retrieve payment transaction details by UUID",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment record details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Payment" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/404NotFound" }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/refund": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Initiate full or partial refund for a completed payment",
+        "security": [{ "BearerAuth": [] }, { "GatewayUserHeader": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": { "type": "number", "minimum": 0.01, "example": 50.0 },
+                  "reason": { "type": "string", "example": "customer_requested" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment refunded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Payment refunded successfully" },
+                    "data": { "$ref": "#/components/schemas/Payment" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "GatewayUserHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-user-id",
+        "description": "User identity header forwarded by Kong API Gateway"
+      }
+    },
+    "schemas": {
+      "AuthSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": { "$ref": "#/components/schemas/UserProfile" },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "accessToken": { "type": "string" },
+                  "refreshToken": { "type": "string" },
+                  "expiresIn": { "type": "integer", "example": 900 }
+                }
+              }
+            }
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email" },
+          "name": { "type": "string" },
+          "role": { "type": "string", "enum": ["CUSTOMER", "ADMIN"] },
+          "avatar": { "type": "string", "format": "uri" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "65e23a9d9c0b4ef8bb6d6bb9" },
+          "name": { "type": "string", "example": "Mechanical Keyboard" },
+          "description": { "type": "string" },
+          "price": { "type": "number", "example": 89.99 },
+          "stock": { "type": "integer", "example": 100 },
+          "category": { "type": "string", "example": "Electronics" },
+          "images": { "type": "array", "items": { "type": "string" } },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": { "type": "string" },
+                "name": { "type": "string" },
+                "price": { "type": "number" },
+                "quantity": { "type": "integer" },
+                "image": { "type": "string" }
+              }
+            }
+          },
+          "itemCount": { "type": "integer", "example": 2 },
+          "subtotal": { "type": "number", "example": 179.98 }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["PENDING", "PAYMENT_PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"],
+            "example": "CONFIRMED"
+          },
+          "totalAmount": { "type": "number", "example": 179.98 },
+          "currency": { "type": "string", "example": "USD" },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": { "type": "string" },
+                "name": { "type": "string" },
+                "price": { "type": "number" },
+                "quantity": { "type": "integer" }
+              }
+            }
+          },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "orderId": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string" },
+          "amount": { "type": "number", "example": 179.98 },
+          "currency": { "type": "string", "example": "USD" },
+          "status": {
+            "type": "string",
+            "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "REFUNDED"],
+            "example": "COMPLETED"
+          },
+          "paymentMethod": { "type": "string", "example": "card" },
+          "transactionId": { "type": "string", "example": "pi_1MvXYZ9abc" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaginationMetadata": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 20 },
+          "total": { "type": "integer", "example": 150 },
+          "totalPages": { "type": "integer", "example": 8 }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "example": "VALIDATION_ERROR" },
+              "message": { "type": "string", "example": "Validation failed" },
+              "details": { "type": "array", "items": { "type": "object" } }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "400BadRequest": {
+        "description": "Validation error or malformed request payload",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "401Unauthorized": {
+        "description": "Missing or invalid authentication token / identity headers",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "403Forbidden": {
+        "description": "Insufficient permissions to perform this operation",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "404NotFound": {
+        "description": "Requested resource was not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "409Conflict": {
+        "description": "Resource conflict (e.g., email already registered or idempotency key collision)",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      }
+    }
+  }
+}

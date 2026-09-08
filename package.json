@@ -16,6 +16,8 @@
     "test": "npm run test --workspaces --if-present",
     "test:services": "npm run test --workspace=services/* --if-present",
     "test:packages": "npm run test --workspace=packages/* --if-present",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.e2e.config.mjs",
+    "docs": "node docs/server.js",
     "clean": "rm -rf node_modules packages/*/node_modules services/*/node_modules"
   },
   "devDependencies": {
