@@ -1,67 +1,92 @@
-import 'dotenv/config';
-import express from 'express';
-import {
-  createLogger,
-  createMetrics,
-  createTraceMiddleware,
-  createHttpLoggerMiddleware,
-  createHttpMetricsMiddleware,
-} from '@ecommerce/logger';
-import { errorHandler, NotFoundError } from '@ecommerce/common-errors';
+import { app, logger } from './app.js';
+import env from './config/env.js';
+import { connectDB, disconnectDB } from './config/db.js';
+import { connectRabbitMQ, disconnectRabbitMQ } from './config/rabbitmq.js';
+import { startOrderConsumer } from './consumers/order.consumer.js';
+
+let server;
 
 /**
- * Express application instance for Payment Service.
- * @type {express.Express}
+ * Initializes database connection, message queues, saga event consumers,
+ * and starts the Express HTTP server listener.
+ *
+ * @returns {Promise<import('http').Server>} The running HTTP server instance.
  */
-const app = express();
-const PORT = process.env.PORT || 3005;
-const logger = createLogger('payment-service');
-const metrics = createMetrics('payment-service');
+async function startServer() {
+  try {
+    // 1. Connect to PostgreSQL database pool
+    await connectDB();
+    logger.info('PostgreSQL database connected');
 
-app.use(express.json());
+    // 2. Connect to RabbitMQ message broker & initialize channel
+    await connectRabbitMQ();
+    logger.info('RabbitMQ connection established');
 
-// ----------------------------------------------------
-// Global Middlewares (Tracing, Metrics, HTTP Logging)
-// ----------------------------------------------------
-app.use(createTraceMiddleware());
-app.use(createHttpMetricsMiddleware(metrics));
-app.use(createHttpLoggerMiddleware(logger));
+    // 3. Register and start background saga order consumer
+    await startOrderConsumer();
+    logger.info('Order saga consumer initialized and listening');
 
-// ----------------------------------------------------
-// Health & Observability Endpoints
-// ----------------------------------------------------
-/**
- * Prometheus metrics scrape endpoint.
- */
-app.get('/metrics', metrics.metricsHandler);
+    // 4. Start HTTP server
+    server = app.listen(env.PORT, () => {
+      logger.info(`Payment Service listening on port ${env.PORT} in ${env.NODE_ENV} mode`);
+    });
 
-/**
- * Service healthcheck probe.
- */
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', service: 'payment-service' });
-});
-
-// ----------------------------------------------------
-// Payment Routes (Placeholder)
-// ----------------------------------------------------
-app.get('/api/v1/payments', (req, res) => {
-  res.status(200).json({ success: true, data: [] });
-});
-
-// ----------------------------------------------------
-// Error Handling
-// ----------------------------------------------------
-app.use((req, res, next) => {
-  next(new NotFoundError(`Route ${req.method} ${req.originalUrl} not found`));
-});
-
-app.use(errorHandler);
-
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    logger.info(`Payment service listening on port ${PORT}`);
-  });
+    return server;
+  } catch (error) {
+    logger.error('Failed to start Payment Service:', error);
+    process.exit(1);
+  }
 }
 
-export default app;
+/**
+ * Gracefully shuts down the HTTP server, message queue channels, and database pool.
+ *
+ * @param {string} signal - The termination signal received (e.g. SIGTERM, SIGINT).
+ * @returns {Promise<void>}
+ */
+async function gracefulShutdown(signal) {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  if (server) {
+    server.close(async () => {
+      logger.info('HTTP server closed. Cleaning up background resources...');
+      try {
+        await disconnectRabbitMQ();
+        logger.info('RabbitMQ connection closed cleanly');
+
+        await disconnectDB();
+        logger.info('PostgreSQL connection pool drained cleanly');
+
+        process.exit(0);
+      } catch (err) {
+        logger.error('Error during graceful shutdown cleanup:', err);
+        process.exit(1);
+      }
+    });
+
+    // Fallback force shutdown timeout (10 seconds)
+    setTimeout(() => {
+      logger.error('Forced shutdown due to timeout waiting for resources to drain.');
+      process.exit(1);
+    }, 10000).unref();
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { startServer, gracefulShutdown, server };
+export default server;

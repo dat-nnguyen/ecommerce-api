@@ -312,13 +312,73 @@
 
 ## 🔮 Upcoming Phases & Roadmap
 
-### 💳 Phase 7: Payment Service (Milestone 7)
+### ✅ Phase 7: Payment Service (Milestone 7)
 
-- [ ] **TODO 7.1: Payment Gateway Adapter & Idempotency**
-  - Stripe / Payment gateway adapter.
-  - Idempotency key table to prevent duplicate charges.
-- [ ] **TODO 7.2: RabbitMQ Event Handling**
-  - Consumes `OrderCreated` -> processes charge -> emits `PaymentProcessed` or `PaymentFailed`.
+- [x] **TODO 7.1: Service Skeleton, Fail-Fast Configuration & PostgreSQL Migrations**
+  - **Fail-Fast Zod Configuration (`src/config/env.js`)**:
+    - Strict validation for `PORT` (default 3005), `NODE_ENV`, `DATABASE_URL`, `RABBITMQ_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `IDEMPOTENCY_TTL_SECONDS` (default 86,400s / 24h), and `LOG_LEVEL`.
+    - Fail-fast process termination with diagnostics on invalid configuration.
+  - **PostgreSQL Connection Pool & Lifecycle (`src/config/db.js`)**:
+    - Connection pooling via `pg.Pool` with idle/connection timeouts, client acquisition, and managed transaction runner (`transaction(callback)`).
+    - Clean `connectDB()` and `disconnectDB()` lifecycle hooks.
+  - **Schema Migrations (`migrations/001_init_payments.sql`, `src/config/migrate.js`)**:
+    - Schema with `pgcrypto`, custom PostgreSQL enums (`payment_status`, `idempotency_status`), `payments` table, and distributed `idempotency_keys` table.
+    - Optimized B-tree indexes: `idx_payments_order_id`, `idx_payments_user_id`, `idx_payments_status`, `idx_payments_transaction_id`, `idx_payments_created_at`, `idx_idempotency_user_id`, `idx_idempotency_created_at`.
+    - Executed live against PostgreSQL database (`ecommerce-postgres`).
+
+- [x] **TODO 7.2: Polymorphic Payment Adapters & State Machine**
+  - **Payment State Machine Model (`src/models/payment.model.js`)**:
+    - Payment status enum: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `REFUNDED`.
+    - Finite State Machine transition rules and validator: `isValidPaymentTransition(from, to)` and `assertValidPaymentTransition(from, to)`.
+    - Database row to camelCase domain entity transformation mapper (`mapRowToPayment`).
+  - **Polymorphic Gateway Adapters (`src/adapters/`)**:
+    - `PaymentAdapter` abstract base class defining polymorphic interface (`createPaymentIntent`, `capturePayment`, `refundPayment`).
+    - `StripeAdapter` with Stripe SDK integration and smallest-currency-unit (cents) calculations.
+    - `MockPaymentAdapter` for fast, offline, isolated unit testing without external API calls.
+    - Adapter factory (`getPaymentAdapter`, `getDefaultPaymentAdapter`).
+
+- [x] **TODO 7.3: Distributed Idempotency & Repository Layer**
+  - **Payment Repository (`src/repositories/payment.repository.js`)**:
+    - Safe parameterized queries: `createPayment`, `findPaymentById`, `findPaymentByOrderId`, `findPaymentByTransactionId`, `updatePaymentStatus`.
+    - Caller-managed transaction executor pattern (`executor = client || dbManager`).
+  - **Idempotency Repository (`src/repositories/idempotency.repository.js`)**:
+    - Atomic key locking via `INSERT INTO idempotency_keys ... ON CONFLICT (key) DO NOTHING RETURNING *`.
+    - Full idempotency lifecycle helpers: `createOrLockKey`, `findKey`, `updateCompletedKey`, `updateFailedKey`, `deleteKey`.
+
+- [x] **TODO 7.4: RabbitMQ Event Handling & Saga Orchestration**
+  - **RabbitMQ Lifecycle & Topic Exchanges (`src/config/rabbitmq.js`)**:
+    - Connection pooling, channel assertion of durable topic exchanges (`ecommerce.order.events`, `ecommerce.payment.events`, `ecommerce.inventory.events`), and graceful teardown.
+  - **Domain Event Publisher (`src/events/payment.publisher.js`)**:
+    - Publishes `payment.completed` to advance Saga in `order-service` to `CONFIRMED`.
+    - Publishes `payment.failed` to trigger Saga compensation in `order-service` to `CANCELLED` and inventory release.
+  - **Saga Order Event Consumer (`src/consumers/order.consumer.js`)**:
+    - Listens on `payment-service.order-events` bound to `order.created` and `order.cancelled`.
+    - Automatically processes gateway charges on `order.created` with duplicate idempotency checks.
+    - Automatically executes refunds on `order.cancelled`.
+    - Poison message rejection via `channel.nack(msg, false, false)` without requeue.
+
+- [x] **TODO 7.5: Domain Service, Middlewares & HTTP Transport**
+  - **Domain Business Service (`src/services/payment.service.js`)**:
+    - `processPayment`: SHA-256 parameter hashing, 3-state idempotency resolution (`STARTED`, `COMPLETED`, `FAILED`), initial `PENDING` creation, adapter charge, state transition to `COMPLETED`/`FAILED`, event publishing, and cached response return.
+    - `getPaymentById` & `getPaymentByOrderId`: Lookup with IDOR ownership validation (`userId` / `isAdmin`).
+    - `refundPayment`: FSM transition verification, adapter refund, status transition to `REFUNDED`.
+  - **Validators & Middlewares (`src/validators/`, `src/middlewares/`)**:
+    - Zod schemas in `payment.validator.js`: `processPaymentSchema`, `paymentIdParamSchema`, `orderIdParamSchema`, `refundPaymentSchema`.
+    - `validate.js`: Middleware parsing and coercing body, query, and params.
+    - `auth.middleware.js`: Gateway identity header extraction (`x-user-id`, `x-user-role`, fallback Bearer JWT) and RBAC `authorize`.
+    - `idempotency.middleware.js`: Extracts and trims `Idempotency-Key` or `x-idempotency-key` header onto `req.idempotencyKey`.
+  - **HTTP Controller & Router (`src/controllers/payment.controller.js`, `src/routes/payment.routes.js`)**:
+    - Thin controller handlers forwarding sanitized requests to `paymentService` and returning standardized envelopes.
+    - Route endpoints mounted under `/api/v1/payments`.
+
+- [x] **TODO 7.6: App Decoupling, Runtime Bootstrap & Test Suites**
+  - **Decoupled Express App & Server (`src/app.js`, `src/server.js`)**:
+    - Tracing context, Prometheus metrics (`/metrics`), health probe (`/health`), 404 handler, and global error handling.
+    - Runtime bootstrap connecting PostgreSQL, RabbitMQ, starting saga order consumer, and listening on port 3005.
+    - Graceful termination on `SIGTERM` and `SIGINT`.
+  - **Unit & Integration Test Suites**:
+    - **140 passing unit & integration tests** across 22 test suites in `payment-service`.
+    - **375 total passing tests** across the entire monorepo (`pnpm test` with 100% pass rate).
 
 ---
 
