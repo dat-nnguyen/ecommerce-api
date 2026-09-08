@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --passWithNoTests",
-    "test:unit": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js tests/unit --passWithNoTests",
-    "test:integration": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js tests/integration --passWithNoTests"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --passWithNoTests",
+    "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest tests/unit --passWithNoTests",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest tests/integration --passWithNoTests"
   },
   "dependencies": {
     "@ecommerce/common-errors": "workspace:*",
