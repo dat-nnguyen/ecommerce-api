@@ -9,7 +9,8 @@
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0.3-brightgreen.svg)](https://swagger.io/)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)](https://github.com/features/actions)
 
-A production-grade, distributed microservices e-commerce backend built to fulfill the [roadmap.sh E-Commerce API](([https://roadmap.sh/projects/scalable-ecommerce-platform])) specification.
+A production-grade, distributed microservices e-commerce backend built to fulfill the [roadmap.sh E-Commerce API](https://roadmap.sh/projects/scalable-ecommerce-platform) specification.
+
 
 The platform is designed with independent domain microservices, specialized polyglot persistence (PostgreSQL, MongoDB, Redis), distributed transaction management using the **Saga Choreography Pattern** over RabbitMQ topic exchanges, **Distributed Idempotency**, comprehensive **OpenAPI 3.0 Documentation** with interactive **Swagger UI**, automated **GitHub Actions CI/CD**, and cross-service **End-to-End Integration Tests**.
 
